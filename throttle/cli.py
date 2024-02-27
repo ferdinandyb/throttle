@@ -11,6 +11,7 @@ def main():
     socketpath = "/tmp/throttle.socket"
     if args.server:
         start_server(socketpath)
+        return
 
     send_message(socketpath, unknownargs)
 
