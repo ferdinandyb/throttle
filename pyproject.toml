@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "throttle"
+version = "0.1.0"
+description = "Throttle commands triggered from multiple sources."
+authors = ["Bence Ferdinandy <bence@ferdinandy.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[tool.poetry.scripts]
+throttle = "throttle.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
