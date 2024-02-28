@@ -68,6 +68,9 @@ class MessageWorker:
         return msg
 
     def msgworker(self):
+        """
+        Handle client inputs from the queue.
+        """
         while True:
             print("restarting loop")
             msg = self.q.get()
@@ -93,6 +96,9 @@ class MessageWorker:
             self.cleanup()
 
     def workerFactory(self):
+        """
+        Factory for handling each type of client input.
+        """
         def worker(q, timeout):
             retry_sequence = self.retry_sequence
             while True:
@@ -129,7 +135,6 @@ class MessageWorker:
         return worker
 
     def cleanup(self):
-        # go through process and queues that haven't been touch in X minutes
         print("cleanup underway", self.data.keys())
         toclean = []
         for key, val in self.data.items():
