@@ -8,6 +8,7 @@ import re
 import time
 import subprocess
 import toml
+import shlex
 from xdg import BaseDirectory
 
 
@@ -58,9 +59,9 @@ class MessageWorker:
         print("checking", self.filters)
         for item in self.filters:
             print(item)
-            if re.search(item["regex"], " ".join(msg)):
+            if re.search(item["regex"], shlex.join(msg)):
                 print("match")
-                return item["result"].split(" ")
+                return shlex.split(item["result"])
         return msg
 
     def msgworker(self):
@@ -70,7 +71,7 @@ class MessageWorker:
             msg = self.checkregex(msg)
             curtime = time.time()
             print("worker", curtime, msg)
-            key = " ".join(msg)
+            key = shlex.join(msg)
             if key not in self.data or not self.data[key].p.is_alive():
                 print(f"{key}: doesn't exist or finished, creating")
                 q = Queue()
