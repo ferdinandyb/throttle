@@ -11,7 +11,29 @@ files = [
     {file = "jsonrpclib_pelix-0.4.3.2-py2.py3-none-any.whl", hash = "sha256:a9c0178317562a179e83deb27f753840fad4afe3b2bd1ee64495592ce3df1b28"},
 ]
 
+[[package]]
+name = "pyxdg"
+version = "0.28"
+description = "PyXDG contains implementations of freedesktop.org standards in python."
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyxdg-0.28-py2.py3-none-any.whl", hash = "sha256:bdaf595999a0178ecea4052b7f4195569c1ff4d344567bccdc12dfdf02d545ab"},
+    {file = "pyxdg-0.28.tar.gz", hash = "sha256:3267bb3074e934df202af2ee0868575484108581e6f3cb006af1da35395e88b4"},
+]
+
+[[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+files = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10"
-content-hash = "694dbb6ba64d679374382a369ed9594a7d79383c1de587e87b3b9b94ae24f5bd"
+content-hash = "692b6e470ffb90cdb7b9fb65896750a1337e7932b76b13870c0c299758c22b3d"

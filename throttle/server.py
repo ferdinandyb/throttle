@@ -4,8 +4,11 @@ from multiprocessing import Process, Queue
 from pathlib import Path
 from dataclasses import dataclass
 import queue
+import re
 import time
 import subprocess
+import toml
+from xdg import BaseDirectory
 
 
 def ipcworker(socketpath, handleMsg):
@@ -29,11 +32,39 @@ class MessageWorker:
         self.q = queue
         self.data = {}
         self.timeout = 20
+        self.filters = []
+        self.loadConfig()
+
+    def loadConfig(self):
+        configdir = BaseDirectory.load_first_config("throttle")
+        if configdir is None:
+            return
+        configpath = Path(configdir) / "config.toml"
+        if not configpath.exists():
+            return
+
+        # let's fail if the config is messed up
+        config = toml.load(Path(configdir) / "config.toml")
+        print("config", config)
+        if "timeout" in config:
+            self.timeout = config["timeout"]
+        if "filters" in config:
+            self.filters = config["filters"]
+
+    def checkregex(self, msg):
+        print("checking", self.filters)
+        for item in self.filters:
+            print(item)
+            if re.search(item["regex"], " ".join(msg)):
+                print("match")
+                return item["result"].split(" ")
+        return msg
 
     def msgworker(self):
         while True:
             print("restarting loop")
             msg = self.q.get()
+            msg = self.checkregex(msg)
             curtime = time.time()
             print("worker", curtime, msg)
             key = " ".join(msg)
