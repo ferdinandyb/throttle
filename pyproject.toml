@@ -6,7 +6,7 @@ authors = ["Bence Ferdinandy <bence@ferdinandy.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.10"
 jsonrpclib-pelix = "^0.4.3.2"
 
 [tool.poetry.scripts]
