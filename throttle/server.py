@@ -12,15 +12,6 @@ import shlex
 from xdg import BaseDirectory
 
 
-def ipcworker(socketpath, handleMsg):
-    if Path(socketpath).exists():
-        Path(socketpath).unlink()
-
-    srv = SimpleJSONRPCServer(socketpath, address_family=socket.AF_UNIX)
-    srv.register_function(handleMsg, "handle")
-    srv.serve_forever()
-
-
 @dataclass
 class workeritem:
     p: Process
@@ -99,6 +90,7 @@ class MessageWorker:
         """
         Factory for handling each type of client input.
         """
+
         def worker(q, timeout):
             retry_sequence = self.retry_sequence
             while True:
@@ -144,6 +136,15 @@ class MessageWorker:
         for key in toclean:
             del self.data[key]
         print("cleanup finished", self.data.keys())
+
+
+def ipcworker(socketpath, handleMsg):
+    if Path(socketpath).exists():
+        Path(socketpath).unlink()
+
+    srv = SimpleJSONRPCServer(socketpath, address_family=socket.AF_UNIX)
+    srv.register_function(handleMsg, "handle")
+    srv.serve_forever()
 
 
 def start_server(socketpath):
