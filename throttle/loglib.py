@@ -9,12 +9,16 @@ def consumer(queue):
     root = logging.getLogger()
     logfolder = Path(BaseDirectory.xdg_state_home) / "throttle"
     logfolder.mkdir(parents=True, exist_ok=True)
-    h = logging.handlers.RotatingFileHandler(logfolder / "throttle.log", "a", 300, 10)
+    filehandler = logging.handlers.RotatingFileHandler(
+        logfolder / "throttle.log", "a", 1024 * 1024 * 10, 10
+    )
     f = logging.Formatter(
         "%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s"
     )
-    h.setFormatter(f)
-    root.addHandler(h)
+    filehandler.setFormatter(f)
+    root.addHandler(filehandler)
+    streamhandler = logging.StreamHandler()
+    root.addHandler(streamhandler)
     while True:
         try:
             record = queue.get()
