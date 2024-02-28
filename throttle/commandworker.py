@@ -1,4 +1,7 @@
+import logging
 import queue
+import re
+import shlex
 import subprocess
 import time
 from dataclasses import dataclass
@@ -7,6 +10,8 @@ from pathlib import Path
 
 import toml
 from xdg import BaseDirectory
+
+from . import loglib
 
 
 @dataclass
@@ -17,8 +22,11 @@ class workeritem:
 
 
 class CommandWorker:
-    def __init__(self, queue):
+    def __init__(self, queue, logqueue):
         self.q = queue
+        self.logqueue = logqueue
+        loglib.publisher_config(self.logqueue)
+        self.logger = logging.getLogger("msg_worker")
         self.data = {}
         self.timeout = 20
         self.filters = []
@@ -47,11 +55,10 @@ class CommandWorker:
             self.notification_cmd = config["notification_cmd"]
 
     def checkregex(self, msg):
-        print("checking", self.filters)
+        self.logger.debug(f"checking: {self.filters}")
         for item in self.filters:
-            print(item)
             if re.search(item["regex"], shlex.join(msg)):
-                print("match")
+                self.logger.info(f"regex rewrite {msg} -> {item['result']}")
                 return shlex.split(item["result"])
         return msg
 
@@ -59,25 +66,25 @@ class CommandWorker:
         """
         Handle client inputs from the queue.
         """
+
         while True:
-            print("restarting loop")
+            self.logger.debug("restarting loop")
             msg = self.q.get()
             msg = self.checkregex(msg)
-            curtime = time.time()
-            print("worker", curtime, msg)
+            self.logger.info(f"handling {msg}")
             key = shlex.join(msg)
             if key not in self.data or not self.data[key].p.is_alive():
-                print(f"{key}: doesn't exist or finished, creating")
+                self.logger.debug(f"{key}: doesn't exist or finished, creating")
                 q = Queue()
                 p = Process(
                     target=self.workerFactory(),
-                    args=(q, self.timeout),
+                    args=(q, self.timeout, key, self.logqueue),
                 )
                 p.start()
                 self.data[key] = workeritem(p, q, time.time())
-            print(f"{key}: approx queue size {self.data[key].q.qsize()}")
+            self.logger.debug(f"{key}: approx queue size {self.data[key].q.qsize()}")
             if self.data[key].q.empty():
-                print(f"{key}: empty, adding new")
+                self.logger.debug(f"{key}: empty, adding new")
                 self.data[key].q.put(msg)
             self.data[key].t = time.time()
 
@@ -88,12 +95,18 @@ class CommandWorker:
         Factory for handling each type of client input.
         """
 
-        def worker(q, timeout):
+        def worker(q, timeout, name, logqueue):
             retry_sequence = self.retry_sequence
+            loglib.publisher_config(logqueue)
+
+            logger = logging.getLogger(f"{name.replace(' ','_')}_worker")
+            counter = 0
+            logger.info("starting process")
             while True:
                 try:
                     msg = q.get(timeout=timeout)
-                    print("starting", time.time(), msg)
+                    counter += 1
+                    logger.info(f"start run no: {counter}")
                     retry_timeout_index = -1
                     while True:
                         if retry_timeout_index + 1 < len(retry_sequence):
@@ -104,7 +117,7 @@ class CommandWorker:
                         stdout, stderr = proc.communicate()
                         if proc.returncode == 0:
                             break
-                        print(time.time(), proc.returncode, stdout, stderr)
+                        logger.debug(f"{proc.returncode=}, {stdout=}, {stderr=}")
                         if self.notification_cmd is not None:
                             subprocess.Popen(
                                 shlex.split(
@@ -116,15 +129,15 @@ class CommandWorker:
                                 )
                             )
                         time.sleep(retry_sequence[retry_timeout_index])
-                    print("finished", time.time(), msg)
+                    logger.info(f"finish run no: {counter}")
                 except queue.Empty:
-                    print("finishing")
+                    logger.info("closing process")
                     break
 
         return worker
 
     def cleanup(self):
-        print("cleanup underway", self.data.keys())
+        self.logger.debug("cleanup underway, {self.data.keys()}")
         toclean = []
         for key, val in self.data.items():
             if not val.p.is_alive():
@@ -132,4 +145,4 @@ class CommandWorker:
 
         for key in toclean:
             del self.data[key]
-        print("cleanup finished", self.data.keys())
+        self.logger.debug("cleanup finished, {self.data.keys()}")
