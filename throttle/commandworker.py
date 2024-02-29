@@ -7,11 +7,13 @@ import time
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from pathlib import Path
+from typing import Dict, List
 
 import toml
 from xdg import BaseDirectory
 
 from . import loglib
+from .structures import Msg, ActionType
 
 
 @dataclass
@@ -22,14 +24,14 @@ class workeritem:
 
 
 class CommandWorker:
-    def __init__(self, queue, logqueue):
+    def __init__(self, queue: Queue, logqueue: Queue):
         self.q = queue
         self.logqueue = logqueue
         loglib.publisher_config(self.logqueue)
         self.logger = logging.getLogger("msg_worker")
-        self.data = {}
-        self.timeout = 20
-        self.filters = []
+        self.data: Dict[str, workeritem] = {}
+        self.timeout = 30
+        self.filters: List[Dict[str, str]] = []
         self.notification_cmd = None
         self.retry_sequence = [5, 15, 30, 60, 120, 300, 900]
         self.loadConfig()
@@ -54,81 +56,97 @@ class CommandWorker:
         if "notification_cmd" in config:
             self.notification_cmd = config["notification_cmd"]
 
-    def checkregex(self, msg):
+    def checkregex(self, msg: Msg) -> Msg:
         self.logger.debug(f"checking: {self.filters}")
-        for item in self.filters:
-            if re.search(item["regex"], shlex.join(msg)):
-                self.logger.info(f"regex rewrite {msg} -> {item['result']}")
-                return shlex.split(item["result"])
+        for i, job in enumerate(msg.cmd):
+            for item in self.filters:
+                if re.search(item["regex"], shlex.join(job)):
+                    self.logger.info(f"regex rewrite {job} -> {item['result']}")
+                    msg.cmd[i] = shlex.split(item["result"])
+                    break
+        self.logger.debug(f"regexed: {msg}")
         return msg
 
-    def msgworker(self):
+    def handleRun(self, msg) -> None:
+        if msg.key not in self.data or not self.data[msg.key].p.is_alive():
+            self.logger.debug(f"{msg.key}: doesn't exist or finished, creating")
+            q: Queue[Msg] = Queue()
+            p = Process(
+                target=self.runworkerFactory(),
+                args=(q, self.timeout, msg.key, self.logqueue),
+            )
+            p.start()
+            self.data[msg.key] = workeritem(p, q, time.time())
+        self.logger.debug(
+            f"{msg.key}: approx queue size {self.data[msg.key].q.qsize()}"
+        )
+        if self.data[msg.key].q.empty():
+            self.logger.debug(f"{msg.key}: empty, adding new")
+            self.data[msg.key].q.put(msg)
+        self.data[msg.key].t = time.time()
+
+    def msgworker(self) -> None:
         """
         Handle client inputs from the queue.
         """
 
         while True:
             self.logger.debug("restarting loop")
-            msg = self.q.get()
+            msg: Msg = self.q.get()
             msg = self.checkregex(msg)
             self.logger.info(f"handling {msg}")
-            key = shlex.join(msg)
-            if key not in self.data or not self.data[key].p.is_alive():
-                self.logger.debug(f"{key}: doesn't exist or finished, creating")
-                q = Queue()
-                p = Process(
-                    target=self.workerFactory(),
-                    args=(q, self.timeout, key, self.logqueue),
-                )
-                p.start()
-                self.data[key] = workeritem(p, q, time.time())
-            self.logger.debug(f"{key}: approx queue size {self.data[key].q.qsize()}")
-            if self.data[key].q.empty():
-                self.logger.debug(f"{key}: empty, adding new")
-                self.data[key].q.put(msg)
-            self.data[key].t = time.time()
+            if msg.action == ActionType.RUN:
+                self.handleRun(msg)
 
             self.cleanup()
 
-    def workerFactory(self):
+    def runworkerFactory(self):
         """
-        Factory for handling each type of client input.
+        Factory for handling each type of jobs.
         """
 
-        def worker(q, timeout, name, logqueue):
-            retry_sequence = self.retry_sequence
+        def handlejobs(msg: Msg, logger, retry_sequence):
+            retry_timeout_index = -1
+            while True:
+                if retry_timeout_index + 1 < len(retry_sequence):
+                    retry_timeout_index += 1
+                for job in msg.cmd:
+                    logger.debug(f"running job: {job}")
+                    proc = subprocess.Popen(
+                        job, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    )
+                    stdout, stderr = proc.communicate()
+                    if proc.returncode != 0:
+                        break
+                if proc.returncode == 0:
+                    break
+                logger.debug(f"{proc.returncode=}, {stdout=}, {stderr=}")
+                if self.notification_cmd is not None:
+                    subprocess.Popen(
+                        shlex.split(
+                            self.notification_cmd.format(
+                                errcode=proc.returncode,
+                                stdout=stdout,
+                                stderr=stderr,
+                            )
+                        )
+                    )
+                time.sleep(retry_sequence[retry_timeout_index])
+
+        def worker(q, timeout, name, logqueue) -> None:
+            self.retry_sequence
             loglib.publisher_config(logqueue)
 
             logger = logging.getLogger(f"{name.replace(' ','_')}_worker")
             counter = 0
             logger.info("starting process")
+
             while True:
                 try:
                     msg = q.get(timeout=timeout)
                     counter += 1
                     logger.info(f"start run no: {counter}")
-                    retry_timeout_index = -1
-                    while True:
-                        if retry_timeout_index + 1 < len(retry_sequence):
-                            retry_timeout_index += 1
-                        proc = subprocess.Popen(
-                            msg, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                        )
-                        stdout, stderr = proc.communicate()
-                        if proc.returncode == 0:
-                            break
-                        logger.debug(f"{proc.returncode=}, {stdout=}, {stderr=}")
-                        if self.notification_cmd is not None:
-                            subprocess.Popen(
-                                shlex.split(
-                                    self.notification_cmd.format(
-                                        errcode=proc.returncode,
-                                        stdout=stdout,
-                                        stderr=stderr,
-                                    )
-                                )
-                            )
-                        time.sleep(retry_sequence[retry_timeout_index])
+                    handlejobs(msg, logger, self.retry_sequence)
                     logger.info(f"finish run no: {counter}")
                 except queue.Empty:
                     logger.info("closing process")

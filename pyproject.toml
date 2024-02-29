@@ -17,6 +17,7 @@ throttle = "throttle.cli:main"
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
 ruff = "^0.2.2"
+mypy = "^1.8.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -25,3 +26,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 lint.select = ["E", "F", "I001"] # default + isort
 line-length = 88 # black compatible
+
+[tool.mypy]
+ignore_missing_imports = true

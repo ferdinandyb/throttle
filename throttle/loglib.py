@@ -12,12 +12,11 @@ def consumer(queue):
     filehandler = logging.handlers.RotatingFileHandler(
         logfolder / "throttle.log", "a", 1024 * 1024 * 10, 10
     )
-    f = logging.Formatter(
-        "%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s"
-    )
+    f = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-8s - %(message)s")
     filehandler.setFormatter(f)
     root.addHandler(filehandler)
     streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(f)
     root.addHandler(streamhandler)
     while True:
         try:
