@@ -89,7 +89,8 @@ class CommandWorker:
         self.data[msg.key].t = time.time()
 
     def handleKill(self, msg) -> None:
-        self.data[msg.key].e.set()
+        if msg.key in self.data:
+            self.data[msg.key].e.set()
 
     def msgworker(self) -> None:
         """
@@ -112,9 +113,11 @@ class CommandWorker:
         Factory for handling each type of jobs.
         """
 
-        def handlejobs(msg: Msg, logger):
+        def handlejobs(msg: Msg, e, logger):
             retry_timeout_index = -1
             while True:
+                if e.is_set():
+                    break
                 if retry_timeout_index + 1 < len(self.retry_sequence):
                     retry_timeout_index += 1
                 for job in msg.cmd:
@@ -138,6 +141,8 @@ class CommandWorker:
                             )
                         )
                     )
+                if e.is_set():
+                    break
                 time.sleep(self.retry_sequence[retry_timeout_index])
 
         def worker(q, e, timeout, name) -> None:
@@ -154,7 +159,7 @@ class CommandWorker:
                     msg = q.get(timeout=timeout)
                     counter += 1
                     logger.info(f"start run no: {counter}")
-                    handlejobs(msg, logger)
+                    handlejobs(msg, e, logger)
                     logger.info(f"finish run no: {counter}")
                 except queue.Empty:
                     logger.info("closing process")

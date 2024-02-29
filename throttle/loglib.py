@@ -34,9 +34,9 @@ def consumer(queue):
             traceback.print_exc(file=sys.stderr)
 
 
-def publisher_config(queue):
+def publisher_config(queue, loglevel=logging.INFO):
     h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
     root = logging.getLogger()
     root.addHandler(h)
     # send all messages, for demo; no other level or filter logic applied.
-    root.setLevel(logging.DEBUG)
+    root.setLevel(loglevel)

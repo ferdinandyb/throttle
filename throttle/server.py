@@ -8,7 +8,7 @@ from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 
 from . import loglib
 from .commandworker import CommandWorker
-from .structures import Msg, ActionType
+from .structures import Msg
 
 
 def ipcworker(socketpath: Path, handleMsg: Callable, logqueue: Queue) -> None:
@@ -21,14 +21,14 @@ def ipcworker(socketpath: Path, handleMsg: Callable, logqueue: Queue) -> None:
     srv.serve_forever()
 
 
-def start_server(socketpath: Path) -> None:
+def start_server(socketpath: Path, loglevel) -> None:
     ipcqueue: Queue[Msg] = Queue()
     logqueue: Queue[Any] = Queue()
     loggerp = Process(target=loglib.consumer, args=(logqueue,))
     loggerp.start()
 
     msgworker = CommandWorker(ipcqueue, logqueue)
-    loglib.publisher_config(logqueue)
+    loglib.publisher_config(logqueue, loglevel)
 
     def handleMsg(msg) -> None:
         ipcqueue.put(Msg(**msg))
