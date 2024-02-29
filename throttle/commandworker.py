@@ -67,6 +67,7 @@ class CommandWorker:
         return msg
 
     def handleRun(self, msg) -> None:
+        msg = self.checkregex(msg)
         if msg.key not in self.data or not self.data[msg.key].p.is_alive():
             self.logger.debug(f"{msg.key}: doesn't exist or finished, creating")
             q: Queue[Msg] = Queue()
@@ -92,22 +93,23 @@ class CommandWorker:
         while True:
             self.logger.debug("restarting loop")
             msg: Msg = self.q.get()
-            msg = self.checkregex(msg)
             self.logger.info(f"handling {msg}")
             if msg.action == ActionType.RUN:
                 self.handleRun(msg)
-
-            self.cleanup()
+            if msg.action == ActionType.CLEAN:
+                self.cleanup()
+            if msg.action == ActionType.KILL:
+                self.logger.error("kill not implemented yet")
 
     def runworkerFactory(self):
         """
         Factory for handling each type of jobs.
         """
 
-        def handlejobs(msg: Msg, logger, retry_sequence):
+        def handlejobs(msg: Msg, logger):
             retry_timeout_index = -1
             while True:
-                if retry_timeout_index + 1 < len(retry_sequence):
+                if retry_timeout_index + 1 < len(self.retry_sequence):
                     retry_timeout_index += 1
                 for job in msg.cmd:
                     logger.debug(f"running job: {job}")
@@ -119,7 +121,7 @@ class CommandWorker:
                         break
                 if proc.returncode == 0:
                     break
-                logger.debug(f"{proc.returncode=}, {stdout=}, {stderr=}")
+                logger.error(f"{proc.returncode=}, {stdout=}, {stderr=}")
                 if self.notification_cmd is not None:
                     subprocess.Popen(
                         shlex.split(
@@ -130,7 +132,7 @@ class CommandWorker:
                             )
                         )
                     )
-                time.sleep(retry_sequence[retry_timeout_index])
+                time.sleep(self.retry_sequence[retry_timeout_index])
 
         def worker(q, timeout, name) -> None:
             self.retry_sequence
@@ -144,10 +146,11 @@ class CommandWorker:
                     msg = q.get(timeout=timeout)
                     counter += 1
                     logger.info(f"start run no: {counter}")
-                    handlejobs(msg, logger, self.retry_sequence)
+                    handlejobs(msg, logger)
                     logger.info(f"finish run no: {counter}")
                 except queue.Empty:
                     logger.info("closing process")
+                    self.q.put(Msg(key="", cmd=[[]], action=ActionType.CLEAN))
                     break
 
         return worker
