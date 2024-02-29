@@ -124,3 +124,15 @@ result = "sleep 15"
 - `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity
 - `notification_cmd`: in case of a command failure, this command is called, while `{errcode}`, `{stdout}` and `{stderr}` being replaced with the eponymous outputs.
 - filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim. In case of multiple commands in one call, it is done per command separately.
+
+## Contributing and issues
+
+Please send patches to
+[~ferdinandyb/throttle-devel@lists.sr.ht](mailto:~ferdinandyb/throttle-devel@lists.sr.ht)
+(see https://git-send-email.io/ on how to do that). You can also send questions
+here (note, that list.sr.ht does not delivier emails with attachments or
+text/html parts, see https://useplaintext.email/ on setting up your client for
+sending only in text/plain). Open tickets on
+https://todo.sr.ht/~ferdinandyb/throttle. Considering the amount of interaction
+I expect, I will also not bite for github PR-s and github issues, but my
+preferences are the above.
