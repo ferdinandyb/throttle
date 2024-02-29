@@ -27,7 +27,6 @@ class CommandWorker:
     def __init__(self, queue: Queue, logqueue: Queue):
         self.q = queue
         self.logqueue = logqueue
-        loglib.publisher_config(self.logqueue)
         self.logger = logging.getLogger("msg_worker")
         self.data: Dict[str, workeritem] = {}
         self.timeout = 30
@@ -73,7 +72,7 @@ class CommandWorker:
             q: Queue[Msg] = Queue()
             p = Process(
                 target=self.runworkerFactory(),
-                args=(q, self.timeout, msg.key, self.logqueue),
+                args=(q, self.timeout, msg.key),
             )
             p.start()
             self.data[msg.key] = workeritem(p, q, time.time())
@@ -133,9 +132,8 @@ class CommandWorker:
                     )
                 time.sleep(retry_sequence[retry_timeout_index])
 
-        def worker(q, timeout, name, logqueue) -> None:
+        def worker(q, timeout, name) -> None:
             self.retry_sequence
-            loglib.publisher_config(logqueue)
 
             logger = logging.getLogger(f"{name.replace(' ','_')}_worker")
             counter = 0

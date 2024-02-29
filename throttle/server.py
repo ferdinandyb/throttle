@@ -14,7 +14,6 @@ from .structures import Msg, ActionType
 def ipcworker(socketpath: Path, handleMsg: Callable, logqueue: Queue) -> None:
     if Path(socketpath).exists():
         Path(socketpath).unlink()
-    loglib.publisher_config(logqueue)
     logger = logging.getLogger("ipc_worker")
     srv = SimpleJSONRPCServer(str(socketpath), address_family=socket.AF_UNIX)
     srv.register_function(handleMsg, "handle")
@@ -28,6 +27,9 @@ def start_server(socketpath: Path) -> None:
     loggerp = Process(target=loglib.consumer, args=(logqueue,))
     loggerp.start()
 
+    msgworker = CommandWorker(ipcqueue, logqueue)
+    loglib.publisher_config(logqueue)
+
     def handleMsg(msg) -> None:
         ipcqueue.put(Msg(**msg))
 
@@ -35,7 +37,6 @@ def start_server(socketpath: Path) -> None:
         target=ipcworker,
         args=(socketpath, handleMsg, logqueue),
     )
-    msgworker = CommandWorker(ipcqueue, logqueue)
     p_msg = Process(target=msgworker.msgworker, args=())
 
     p_ipc.start()
