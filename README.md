@@ -67,12 +67,13 @@ result = "sleep 15"
 ```
 
 - `task_timeout`: how long to wait before cleaning up a process with no more incoming commands (probably no need to change this)
-- `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity (TODO: this is probably a bad idea)
+- `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity
 - `notification_cmd`: in case of a command failure, this command is called, while `{errcode}`, `{stdout}` and `{stderr}` being replaced with the eponymous outputs.
 - filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim.
 
 
 # TODO:
-
-- switch from print to proper logging
+- fix double logging
+- add CLI flag to control logging detail
+-
 - add some help to CLI

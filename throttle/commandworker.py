@@ -126,8 +126,8 @@ class CommandWorker:
                         shlex.split(
                             self.notification_cmd.format(
                                 errcode=proc.returncode,
-                                stdout=stdout,
-                                stderr=stderr,
+                                stdout=stdout.decode("utf-8"),
+                                stderr=stderr.decode("utf-8"),
                             )
                         )
                     )
