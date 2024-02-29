@@ -5,6 +5,13 @@ sources, by making sure that if a specific command is sent multiple times,
 while the first instance is running, it is executed once _after_ the first
 command finished. Can be configured to map commands together by regex matching.
 
+## Social
+
+Development and support happens on
+[sourcehut](https://sr.ht/~ferdinandyb/throttle/), but there's a mirror on
+[github](https://github.com/ferdinandyb/throttle) for convenience and
+discoverability. You can also star there to show your interest/appreciation.
+
 ## Getting started
 
 Install with
@@ -46,6 +53,53 @@ a similar problem when quickly archiving mail from you inbox: many `mbsync`
 commands triggered in succession, but only really the first couple of
 operations synced by `mbsync`.
 
+## Usage
+
+```
+usage: throttle [-h] [-s | -c CMD | -k]
+                [--LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+
+options:
+  -h, --help            show this help message and exit
+  -s, --server          Start server.
+  -c CMD, --cmd CMD     Explicitly give cmd to execute, can be given multiple
+                        times, in that case, they will be run consecutively.
+  -k, --kill            Kill a previously started cmd.
+  --LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set loglevel.
+```
+
+First start a server with `throttle --server`. It will log to
+`$XDG_STATE/throttle/throttle.log`, which should default to
+`~/.local/state/throttle/throttle.log`.
+
+To start a job run `throttle my command` which will run `my command`. You can make it explicit by running `throttle --cmd "my command"`. Multiple `--cmd` flags will execute the command successively, if they all succeed with exit code 0. Any dangling parameters will be scooped up for a last command so
+
+```
+throttle hello --cmd "my command" world
+```
+
+is equivalent to
+
+```
+throttle --cmd "my command" --cmd "hello world"
+```
+
+although you probably should not do this. Anyhow, this will first execute `my
+command` and if it succeeds, it will run then run `hello world`. When running
+multiple commands, they are treated as one call in terms of throttling.
+
+If one `throttle --cmd "hello world"` errors out and you don't want it to run
+indefinitely, you can stop it alltogether by `throttle --kill --cmd "hello
+world"`. Note, that this does not save you from restarting it with `throttle
+--cmd "hello world"` again.
+
+Practical usage of a multiple commands would be something like:
+
+```
+throttle --cmd "mbsync inbox" --cmd "notmuch new"
+```
+
 ## Configuration
 
 Configuration happens in `$XDG_CONFIG/throttle/config.toml`.
@@ -69,4 +123,4 @@ result = "sleep 15"
 - `task_timeout`: how long to wait before cleaning up a process with no more incoming commands (probably no need to change this)
 - `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity
 - `notification_cmd`: in case of a command failure, this command is called, while `{errcode}`, `{stdout}` and `{stderr}` being replaced with the eponymous outputs.
-- filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim.
+- filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim. In case of multiple commands in one call, it is done per command separately.
