@@ -5,7 +5,8 @@ import shlex
 import subprocess
 import time
 from dataclasses import dataclass
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Event
+from multiprocessing.synchronize import Event as SyncEvent
 from pathlib import Path
 from typing import Dict, List
 
@@ -20,6 +21,7 @@ from .structures import Msg, ActionType
 class workeritem:
     p: Process
     q: Queue
+    e: SyncEvent
     t: float
 
 
@@ -71,12 +73,13 @@ class CommandWorker:
         if msg.key not in self.data or not self.data[msg.key].p.is_alive():
             self.logger.debug(f"{msg.key}: doesn't exist or finished, creating")
             q: Queue[Msg] = Queue()
+            e = Event()
             p = Process(
                 target=self.runworkerFactory(),
-                args=(q, self.timeout, msg.key),
+                args=(q, e, self.timeout, msg.key),
             )
             p.start()
-            self.data[msg.key] = workeritem(p, q, time.time())
+            self.data[msg.key] = workeritem(p, q, e, time.time())
         self.logger.debug(
             f"{msg.key}: approx queue size {self.data[msg.key].q.qsize()}"
         )
@@ -84,6 +87,9 @@ class CommandWorker:
             self.logger.debug(f"{msg.key}: empty, adding new")
             self.data[msg.key].q.put(msg)
         self.data[msg.key].t = time.time()
+
+    def handleKill(self, msg) -> None:
+        self.data[msg.key].e.set()
 
     def msgworker(self) -> None:
         """
@@ -99,7 +105,7 @@ class CommandWorker:
             if msg.action == ActionType.CLEAN:
                 self.cleanup()
             if msg.action == ActionType.KILL:
-                self.logger.error("kill not implemented yet")
+                self.handleKill(msg)
 
     def runworkerFactory(self):
         """
@@ -134,7 +140,7 @@ class CommandWorker:
                     )
                 time.sleep(self.retry_sequence[retry_timeout_index])
 
-        def worker(q, timeout, name) -> None:
+        def worker(q, e, timeout, name) -> None:
             self.retry_sequence
 
             logger = logging.getLogger(f"{name.replace(' ','_')}_worker")
@@ -142,6 +148,8 @@ class CommandWorker:
             logger.info("starting process")
 
             while True:
+                if e.is_set():
+                    break
                 try:
                     msg = q.get(timeout=timeout)
                     counter += 1
@@ -150,8 +158,8 @@ class CommandWorker:
                     logger.info(f"finish run no: {counter}")
                 except queue.Empty:
                     logger.info("closing process")
-                    self.q.put(Msg(key="", cmd=[[]], action=ActionType.CLEAN))
                     break
+            self.q.put(Msg(key="", cmd=[[]], action=ActionType.CLEAN))
 
         return worker
 
