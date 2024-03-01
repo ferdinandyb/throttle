@@ -5,7 +5,7 @@ import shlex
 import subprocess
 import time
 from dataclasses import dataclass
-from multiprocessing import Process, Queue, Event
+from multiprocessing import Event, Process, Queue
 from multiprocessing.synchronize import Event as SyncEvent
 from pathlib import Path
 from typing import Dict, List
@@ -13,8 +13,7 @@ from typing import Dict, List
 import toml
 from xdg import BaseDirectory
 
-from . import loglib
-from .structures import Msg, ActionType
+from .structures import ActionType, Msg
 
 
 @dataclass
@@ -122,22 +121,19 @@ class CommandWorker:
                     retry_timeout_index += 1
                 for job in msg.cmd:
                     logger.debug(f"running job: {job}")
-                    proc = subprocess.Popen(
-                        job, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                    )
-                    stdout, stderr = proc.communicate()
+                    proc = subprocess.run(job, capture_output=True)
                     if proc.returncode != 0:
                         break
                 if proc.returncode == 0:
                     break
-                logger.error(f"{proc.returncode=}, {stdout=}, {stderr=}")
+                logger.error(f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}")
                 if self.notification_cmd is not None:
-                    subprocess.Popen(
+                    subprocess.run(
                         shlex.split(
                             self.notification_cmd.format(
                                 errcode=proc.returncode,
-                                stdout=stdout.decode("utf-8"),
-                                stderr=stderr.decode("utf-8"),
+                                stdout=proc.stdout.decode("utf-8"),
+                                stderr=proc.stderr.decode("utf-8"),
                             )
                         )
                     )
