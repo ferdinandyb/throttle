@@ -149,6 +149,7 @@ class CommandWorker:
 
         def handlejobs(msg: Msg, e, logger) -> None:
             retry_timeout_index = -1
+            error_counter = 0
             while True:
                 if e.is_set():
                     break
@@ -163,25 +164,30 @@ class CommandWorker:
                         )
                         if proc.returncode != 0:
                             success = False
+                            error_counter += 1
                             logger.error(
                                 f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}"
                             )
-                            if retry_timeout_index + 1 >= self.notify_on_counter:
+                            if error_counter >= self.notify_on_counter:
                                 self.sendNotification(
                                     key=msg.key,
                                     job=str(job),
                                     msg=f"{proc.stderr.decode('utf-8')} - {proc.stdout.decode('utf-8')}",
                                     errcode=proc.returncode,
                                 )
+                                error_counter = 0
                             break
                     except Exception as error:
-                        logger.error(f"{job}'s subprocess failed with {error}")
-                        self.sendNotification(
-                            key=msg.key,
-                            job=str(job),
-                            msg=f"subprocess failed with {error}",
-                        )
                         success = False
+                        error_counter += 1
+                        logger.error(f"{job}'s subprocess failed with {error}")
+                        if error_counter >= self.notify_on_counter:
+                            self.sendNotification(
+                                key=msg.key,
+                                job=str(job),
+                                msg=f"subprocess failed with {error}",
+                            )
+                            error_counter = 0
                         break
 
                 if success:
