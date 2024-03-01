@@ -12,6 +12,7 @@ from .structures import Msg
 
 
 def ipcworker(socketpath: Path, handleMsg: Callable, logqueue: Queue) -> None:
+    socketpath.parent.mkdir(parents=True, exist_ok=True)
     if Path(socketpath).exists():
         Path(socketpath).unlink()
     logger = logging.getLogger("ipc_worker")
