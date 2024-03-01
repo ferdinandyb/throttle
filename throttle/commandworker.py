@@ -33,7 +33,10 @@ class CommandWorker:
         self.timeout = 30
         self.filters: List[Dict[str, str]] = []
         self.notification_cmd = None
+        self.notify_on_counter = 0
+        self.job_timeout = 600
         self.retry_sequence = [5, 15, 30, 60, 120, 300, 900]
+
         self.loadConfig()
 
     def loadConfig(self):
@@ -55,6 +58,10 @@ class CommandWorker:
             self.retry_sequence = config["retry_sequence"]
         if "notification_cmd" in config:
             self.notification_cmd = config["notification_cmd"]
+        if "notify_on_counter" in config:
+            self.notify_on_counter = config["notify_on_counter"]
+        if "job_timeout" in config:
+            self.job_timeout = config["job_timeout"]
 
     def checkregex(self, msg: Msg) -> Msg:
         self.logger.debug(f"checking: {self.filters}")
@@ -107,36 +114,78 @@ class CommandWorker:
             if msg.action == ActionType.KILL:
                 self.handleKill(msg)
 
+    def sendNotification(
+        self,
+        key: str = "",
+        job: str = "",
+        urgency: str = "critical",
+        errcode: int = -1000,
+        msg: str = "",
+    ) -> None:
+        if self.notification_cmd is None:
+            return
+        try:
+            self.logger.debug(
+                f"sending message {job=}, {key=}, {msg=}, {urgency=}, {errcode=}"
+            )
+            subprocess.run(
+                shlex.split(
+                    self.notification_cmd.format(
+                        key=key,
+                        job=job,
+                        urgency=urgency,
+                        msg=msg,
+                        errcode=errcode,
+                    )
+                )
+            )
+        except Exception as e:
+            self.logger.error(f"failed sending notification command with error: {e}")
+
     def runworkerFactory(self):
         """
         Factory for handling each type of jobs.
         """
 
-        def handlejobs(msg: Msg, e, logger):
+        def handlejobs(msg: Msg, e, logger) -> None:
             retry_timeout_index = -1
             while True:
                 if e.is_set():
                     break
                 if retry_timeout_index + 1 < len(self.retry_sequence):
                     retry_timeout_index += 1
+                success = True
                 for job in msg.cmd:
-                    logger.debug(f"running job: {job}")
-                    proc = subprocess.run(job, capture_output=True)
-                    if proc.returncode != 0:
-                        break
-                if proc.returncode == 0:
-                    break
-                logger.error(f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}")
-                if self.notification_cmd is not None:
-                    subprocess.run(
-                        shlex.split(
-                            self.notification_cmd.format(
-                                errcode=proc.returncode,
-                                stdout=proc.stdout.decode("utf-8"),
-                                stderr=proc.stderr.decode("utf-8"),
-                            )
+                    logger.debug(f"running job: {job} with timeout {self.job_timeout}")
+                    try:
+                        proc = subprocess.run(
+                            job, capture_output=True, timeout=self.job_timeout
                         )
-                    )
+                        if proc.returncode != 0:
+                            success = False
+                            logger.error(
+                                f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}"
+                            )
+                            if retry_timeout_index + 1 >= self.notify_on_counter:
+                                self.sendNotification(
+                                    key=msg.key,
+                                    job=str(job),
+                                    msg=f"{proc.stderr.decode('utf-8')} - {proc.stdout.decode('utf-8')}",
+                                    errcode=proc.returncode,
+                                )
+                            break
+                    except Exception as error:
+                        logger.error(f"{job}'s subprocess failed with {error}")
+                        self.sendNotification(
+                            key=msg.key,
+                            job=str(job),
+                            msg=f"subprocess failed with {error}",
+                        )
+                        success = False
+                        break
+
+                if success:
+                    break
                 if e.is_set():
                     break
                 time.sleep(self.retry_sequence[retry_timeout_index])

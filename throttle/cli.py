@@ -1,8 +1,10 @@
-from .server import start_server
 import logging
 from pathlib import Path
-from .client import send_message
+
 from xdg import BaseDirectory
+
+from .client import send_message
+from .server import start_server
 
 
 def main():
@@ -17,7 +19,7 @@ def main():
         action="append",
         help="Explicitly give cmd to execute, can be given multiple times, in that case, they will be run consecutively.",
     )
-    group.add_argument(
+    parser.add_argument(
         "-k", "--kill", action="store_true", help="Kill a previously started cmd."
     )
     parser.add_argument(

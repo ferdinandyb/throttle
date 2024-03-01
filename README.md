@@ -109,7 +109,9 @@ Example config:
 ```
 task_timeout = 30
 retry_sequence = [5,15,30,60,120,300,900]
-notification_cmd = 'echo "code:{errcode} stdout:{stdout} stdin:{stderr}"'
+notification_cmd = 'notify-send --urgency={urgency} --app-name="{key} (throttle)" "{job}" "{errcode}: {msg}"'
+notify_on_counter = 2
+job_timeout = 600
 
 [[filters]]
 regex = '^sleep \d$'
@@ -118,12 +120,23 @@ result = "sleep 10"
 [[filters]]
 regex = '^sleep \d\d'
 result = "sleep 15"
+
 ```
 
 - `task_timeout`: how long to wait before cleaning up a process with no more incoming commands (probably no need to change this)
 - `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity
-- `notification_cmd`: in case of a command failure, this command is called, while `{errcode}`, `{stdout}` and `{stderr}` being replaced with the eponymous outputs.
+- `notification_cmd`: in case of a command failure, this command is called. See below for template keys
+- `notify_on_counter`: how many failures before a notification should be sent
+- `job_timeout`: how many seconds to let a job run, before timeouting it
 - filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim. In case of multiple commands in one call, it is done per command separately.
+
+Key that can be used in `notification_cmd`:
+
+- key: references the entire command that started the jobs (multiple `--cmd`-s)
+- job: a job (single `--cmd`)
+- urgency: this is always "urgent" for now
+- errcode: errorcode if it exists (set to -1000 if error code was not returned)
+- msg: usually stderr of subprocess
 
 ## Contributing and issues
 
