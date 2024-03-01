@@ -1,8 +1,10 @@
-from jsonrpclib import ServerProxy
-from typing import List
-from pathlib import Path
-from .structures import Msg, ActionType
 import shlex
+from pathlib import Path
+from typing import List
+
+from jsonrpclib import ServerProxy
+
+from .structures import ActionType
 
 
 def generateKey(cmd: List[List[str]]) -> str:
@@ -12,6 +14,11 @@ def generateKey(cmd: List[List[str]]) -> str:
 def send_message(
     socketpath: Path, kill: bool, cmd: List[str], unknownargs: List[str]
 ) -> None:
+    if not socketpath.exists():
+        print("socket doesn't exist, is throttle running?")
+        import sys
+
+        sys.exit(1)
     action = ActionType.KILL if kill else ActionType.RUN
     job: List[List[str]] = []
     if cmd is not None:
