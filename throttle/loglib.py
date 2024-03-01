@@ -10,7 +10,7 @@ def consumer(queue):
     logfolder = Path(BaseDirectory.xdg_state_home) / "throttle"
     logfolder.mkdir(parents=True, exist_ok=True)
     filehandler = logging.handlers.RotatingFileHandler(
-        logfolder / "throttle.log", "a", 1024 * 1024 * 10, 10
+        logfolder / "throttle.log", "a", 1024 * 1024 * 10, 3
     )
     f = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-8s - %(message)s")
     filehandler.setFormatter(f)

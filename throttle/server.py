@@ -2,7 +2,7 @@ import logging
 import socket
 from multiprocessing import Process, Queue
 from pathlib import Path
-from typing import Callable, Any
+from typing import Any, Callable
 
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 
