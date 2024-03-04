@@ -69,15 +69,13 @@ class CommandWorker:
         self.logger.debug(f"checking: {self.filters}")
         for i, job in enumerate(msg.cmd):
             for item in self.filters:
-                strjob = shlex.join(job)
                 self.logger.debug(
-                    f"pattern: {item['pattern']}, subsitute: {item['substitute']}, input: {strjob}"
+                    f"pattern: {item['pattern']}, subsitute: {item['substitute']}, input: {job}"
                 )
-                newjob = re.sub(item["pattern"], item["substitute"], strjob)
-                if newjob != strjob:
-                    newcmd = shlex.split(newjob)
-                    self.logger.info(f"regex rewrite {job} -> {newcmd}")
-                    msg.cmd[i] = newcmd
+                newjob = re.sub(item["pattern"], item["substitute"], job)
+                if newjob != job:
+                    self.logger.info(f"regex rewrite {job} -> {newjob}")
+                    msg.cmd[i] = newjob
                     break
         self.logger.debug(f"regexed: {msg}")
         return msg
@@ -168,7 +166,9 @@ class CommandWorker:
                     logger.debug(f"running job: {job} with timeout {self.job_timeout}")
                     try:
                         proc = subprocess.run(
-                            job, capture_output=True, timeout=self.job_timeout
+                            shlex.split(job),
+                            capture_output=True,
+                            timeout=self.job_timeout,
                         )
                         if proc.returncode != 0:
                             success = False
@@ -192,7 +192,7 @@ class CommandWorker:
                         if error_counter >= self.notify_on_counter:
                             self.sendNotification(
                                 key=msg.key,
-                                job=str(job),
+                                job=job,
                                 msg=f"subprocess failed with {error}",
                             )
                             error_counter = 0
@@ -223,7 +223,7 @@ class CommandWorker:
                 except queue.Empty:
                     logger.info("closing process")
                     break
-            self.q.put(Msg(key="", cmd=[[]], action=ActionType.CLEAN))
+            self.q.put(Msg(key="", cmd=[], action=ActionType.CLEAN))
 
         return worker
 

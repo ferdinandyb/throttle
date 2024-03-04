@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import List
 from enum import Enum
+from typing import List
 
 
 class ActionType(Enum):
@@ -12,5 +12,5 @@ class ActionType(Enum):
 @dataclass
 class Msg:
     key: str
+    cmd: List[str]
     action: ActionType
-    cmd: List[List[str]]
