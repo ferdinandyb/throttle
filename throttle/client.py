@@ -20,7 +20,7 @@ def send_message(
         job += cmd
     if len(unknownargs) > 0:
         job += [" ".join(unknownargs)]
-    if len(cmd) == 0:
+    if len(job) == 0:
         return
     client = ServerProxy(f"unix+http://{socketpath}")
     client.handle({"key": " && ".join(job), "action": action, "cmd": job})
