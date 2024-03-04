@@ -49,10 +49,12 @@ class CommandWorker:
 
         # let's fail if the config is messed up
         config = toml.load(Path(configdir) / "config.toml")
-        print("config", config)
         if "task_timeout" in config:
             self.timeout = config["task_timeout"]
         if "filters" in config:
+            for f in config["filters"]:
+                if "pattern" not in f or "substitute" not in f:
+                    self.logger.error(f"{f} is not a valid filter config")
             self.filters = config["filters"]
         if "retry_sequence" in config:
             self.retry_sequence = config["retry_sequence"]
@@ -67,9 +69,15 @@ class CommandWorker:
         self.logger.debug(f"checking: {self.filters}")
         for i, job in enumerate(msg.cmd):
             for item in self.filters:
-                if re.search(item["regex"], shlex.join(job)):
-                    self.logger.info(f"regex rewrite {job} -> {item['result']}")
-                    msg.cmd[i] = shlex.split(item["result"])
+                strjob = shlex.join(job)
+                self.logger.debug(
+                    f"pattern: {item['pattern']}, subsitute: {item['substitute']}, input: {strjob}"
+                )
+                newjob = re.sub(item["pattern"], item["substitute"], strjob)
+                if newjob != strjob:
+                    newcmd = shlex.split(newjob)
+                    self.logger.info(f"regex rewrite {job} -> {newcmd}")
+                    msg.cmd[i] = newcmd
                     break
         self.logger.debug(f"regexed: {msg}")
         return msg

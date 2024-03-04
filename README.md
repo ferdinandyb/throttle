@@ -114,13 +114,16 @@ notify_on_counter = 2
 job_timeout = 600
 
 [[filters]]
-regex = '^sleep \d$'
-result = "sleep 10"
+pattern = '^sleep \d$'
+substitute = "sleep 10"
 
 [[filters]]
-regex = '^sleep \d\d'
-result = "sleep 15"
+pattern = '^sleep \d\d'
+substitute = "sleep 15"
 
+[[filters]]
+pattern = '^mbsync (\w+)-(?!(inbox|archive|sent|drafts)$).+'
+substitute = 'mbsync \1-folders'
 ```
 
 - `task_timeout`: how long to wait before cleaning up a process with no more incoming commands (probably no need to change this)
@@ -128,7 +131,7 @@ result = "sleep 15"
 - `notification_cmd`: in case of a command failure, this command is called. See below for template keys
 - `notify_on_counter`: how many failures before a notification should be sent
 - `job_timeout`: how many seconds to let a job run, before timeouting it
-- filters: each `filters` section defines a specific transformation, the first matching one is applied. `regex` is checked against the command and if it matches, replaced by `result` verbatim. In case of multiple commands in one call, it is done per command separately.
+- filters: each `filters` section defines a specific transformation, the first matching one is applied. `pattern` is checked against the command and if it matches, replaced by `substitute` using regex substitution (python `re.sub({pattern},{substitute},{input}` is used). In case of multiple commands in one call, it is done per command separately.
 
 Key that can be used in `notification_cmd`:
 
