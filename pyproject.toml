@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Throttle commands triggered from multiple sources."
 authors = ["Bence Ferdinandy <bence@ferdinandy.com>"]
 readme = "README.md"
-licence = "EUPL-1.2"
+license = "EUPL-1.2"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
