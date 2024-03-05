@@ -87,7 +87,7 @@ throttle --cmd "my command" --cmd "hello world"
 
 although you probably should not do this. Anyhow, this will first execute `my
 command` and if it succeeds, it will run then run `hello world`. When running
-multiple commands, they are treated as one call in terms of throttling.
+multiple commands, they are executed serially.
 
 If one `throttle --cmd "hello world"` errors out and you don't want it to run
 indefinitely, you can stop it alltogether by `throttle --kill --cmd "hello
@@ -109,7 +109,7 @@ Example config:
 ```
 task_timeout = 30
 retry_sequence = [5,15,30,60,120,300,900]
-notification_cmd = 'notify-send --urgency={urgency} --app-name="{key} (throttle)" "{job}" "{errcode}: {msg}"'
+notification_cmd = 'notify-send --urgency={urgency} --app-name="throttle" "{job}" "{errcode}: {msg}"'
 notify_on_counter = 2
 job_timeout = 600
 
@@ -135,7 +135,6 @@ substitute = 'mbsync \1-folders'
 
 Key that can be used in `notification_cmd`:
 
-- key: references the entire command that started the jobs (multiple `--cmd`-s)
 - job: a job (single `--cmd`)
 - urgency: this is always "urgent" for now
 - errcode: errorcode if it exists (set to -1000 if error code was not returned)

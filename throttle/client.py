@@ -23,5 +23,5 @@ def send_message(
     if len(job) == 0:
         return
     client = ServerProxy(f"unix+http://{socketpath}")
-    client.handle({"key": " && ".join(job), "action": action, "cmd": job})
+    client.handle({"action": action, "cmd": job})
     client("close")()

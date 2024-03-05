@@ -11,6 +11,17 @@ class ActionType(Enum):
 
 @dataclass
 class Msg:
-    key: str
     cmd: List[str]
     action: ActionType
+    index: int = 0
+
+    @property
+    def job(self) -> str:
+        return self.cmd[self.index]
+
+    def next(self):
+        if self.index < len(self.cmd) - 1:
+            self.index += 1
+            return True
+        else:
+            return False

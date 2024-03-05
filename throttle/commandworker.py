@@ -34,7 +34,7 @@ class CommandWorker:
         self.filters: List[Dict[str, str]] = []
         self.notification_cmd = None
         self.notify_on_counter = 0
-        self.job_timeout = 600
+        self.job_timeout = 60 * 60
         self.retry_sequence = [5, 15, 30, 60, 120, 300, 900]
 
         self.loadConfig()
@@ -82,27 +82,29 @@ class CommandWorker:
 
     def handleRun(self, msg) -> None:
         msg = self.checkregex(msg)
-        if msg.key not in self.data or not self.data[msg.key].p.is_alive():
-            self.logger.debug(f"{msg.key}: doesn't exist or finished, creating")
+        if msg.job not in self.data or not self.data[msg.job].p.is_alive():
+            self.logger.debug(f"{msg.job}: doesn't exist or finished, creating")
             q: Queue[Msg] = Queue()
             e = Event()
             p = Process(
                 target=self.runworkerFactory(),
-                args=(q, e, self.timeout, msg.key),
+                args=(q, e, self.timeout, msg.job),
             )
             p.start()
-            self.data[msg.key] = workeritem(p, q, e, time.time())
+            self.data[msg.job] = workeritem(p, q, e, time.time())
         self.logger.debug(
-            f"{msg.key}: approx queue size {self.data[msg.key].q.qsize()}"
+            f"{msg.job}: approx queue size {self.data[msg.job].q.qsize()}"
         )
-        if self.data[msg.key].q.empty():
-            self.logger.debug(f"{msg.key}: empty, adding new")
-            self.data[msg.key].q.put(msg)
-        self.data[msg.key].t = time.time()
+        if self.data[msg.job].q.empty():
+            self.logger.debug(f"{msg.job}: empty, adding new")
+            self.data[msg.job].q.put(msg)
+        self.data[msg.job].t = time.time()
 
     def handleKill(self, msg) -> None:
-        if msg.key in self.data:
-            self.data[msg.key].e.set()
+        for job in msg.cmd:
+            if job in self.data:
+                self.data[job].e.set()
+        self.logger.debug(f"remaining jobs: {self.data.keys()}")
 
     def msgworker(self) -> None:
         """
@@ -110,7 +112,6 @@ class CommandWorker:
         """
 
         while True:
-            self.logger.debug("restarting loop")
             msg: Msg = self.q.get()
             self.logger.info(f"handling {msg}")
             if msg.action == ActionType.RUN:
@@ -122,7 +123,6 @@ class CommandWorker:
 
     def sendNotification(
         self,
-        key: str = "",
         job: str = "",
         urgency: str = "critical",
         errcode: int = -1000,
@@ -131,13 +131,10 @@ class CommandWorker:
         if self.notification_cmd is None:
             return
         try:
-            self.logger.debug(
-                f"sending message {job=}, {key=}, {msg=}, {urgency=}, {errcode=}"
-            )
+            self.logger.debug(f"sending message {job=}, {msg=}, {urgency=}, {errcode=}")
             subprocess.run(
                 shlex.split(
                     self.notification_cmd.format(
-                        key=key,
                         job=job,
                         urgency=urgency,
                         msg=msg,
@@ -162,41 +159,37 @@ class CommandWorker:
                 if retry_timeout_index + 1 < len(self.retry_sequence):
                     retry_timeout_index += 1
                 success = True
-                for job in msg.cmd:
-                    logger.debug(f"running job: {job} with timeout {self.job_timeout}")
-                    try:
-                        proc = subprocess.run(
-                            shlex.split(job),
-                            capture_output=True,
-                            timeout=self.job_timeout,
-                        )
-                        if proc.returncode != 0:
-                            success = False
-                            error_counter += 1
-                            logger.error(
-                                f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}"
-                            )
-                            if error_counter >= self.notify_on_counter:
-                                self.sendNotification(
-                                    key=msg.key,
-                                    job=str(job),
-                                    msg=f"{proc.stderr.decode('utf-8')} - {proc.stdout.decode('utf-8')}",
-                                    errcode=proc.returncode,
-                                )
-                                error_counter = 0
-                            break
-                    except Exception as error:
+                logger.debug(msg)
+                logger.debug(f"running job: {msg.job} with timeout {self.job_timeout}")
+                try:
+                    proc = subprocess.run(
+                        shlex.split(msg.job),
+                        capture_output=True,
+                        timeout=self.job_timeout,
+                    )
+                    if proc.returncode != 0:
                         success = False
                         error_counter += 1
-                        logger.error(f"{job}'s subprocess failed with {error}")
+                        logger.error(
+                            f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}, {error_counter=}"
+                        )
                         if error_counter >= self.notify_on_counter:
                             self.sendNotification(
-                                key=msg.key,
-                                job=job,
-                                msg=f"subprocess failed with {error}",
+                                job=msg.job,
+                                msg=f"c:{error_counter}|{proc.stderr.decode('utf-8')} - {proc.stdout.decode('utf-8')}",
+                                errcode=proc.returncode,
                             )
                             error_counter = 0
-                        break
+                except Exception as error:
+                    success = False
+                    error_counter += 1
+                    logger.error(f"{msg.job}'s subprocess failed with {error}")
+                    if error_counter >= self.notify_on_counter:
+                        self.sendNotification(
+                            job=msg.job,
+                            msg=f"subprocess failed with {error}",
+                        )
+                        error_counter = 0
 
                 if success:
                     break
@@ -220,15 +213,17 @@ class CommandWorker:
                     logger.info(f"start run no: {counter}")
                     handlejobs(msg, e, logger)
                     logger.info(f"finish run no: {counter}")
+                    if msg.next():
+                        self.q.put(msg)
                 except queue.Empty:
                     logger.info("closing process")
                     break
-            self.q.put(Msg(key="", cmd=[], action=ActionType.CLEAN))
+            self.q.put(Msg(cmd=[], action=ActionType.CLEAN))
 
         return worker
 
     def cleanup(self):
-        self.logger.debug("cleanup underway, {self.data.keys()}")
+        self.logger.debug(f"cleanup underway, {self.data.keys()}")
         toclean = []
         for key, val in self.data.items():
             if not val.p.is_alive():
@@ -236,4 +231,4 @@ class CommandWorker:
 
         for key in toclean:
             del self.data[key]
-        self.logger.debug("cleanup finished, {self.data.keys()}")
+        self.logger.debug(f"cleanup finished, {self.data.keys()}")
