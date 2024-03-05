@@ -1,4 +1,5 @@
 import logging
+import os
 import socket
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -11,7 +12,7 @@ from .commandworker import CommandWorker
 from .structures import Msg
 
 
-def ipcworker(socketpath: Path, handleMsg: Callable, logqueue: Queue) -> None:
+def ipcworker(socketpath: Path, handleMsg: Callable) -> None:
     socketpath.parent.mkdir(parents=True, exist_ok=True)
     if Path(socketpath).exists():
         Path(socketpath).unlink()
@@ -30,13 +31,15 @@ def start_server(socketpath: Path, loglevel) -> None:
 
     msgworker = CommandWorker(ipcqueue, logqueue)
     loglib.publisher_config(logqueue, loglevel)
+    logger = logging.getLogger("server")
+    logger.debug(os.environ)
 
     def handleMsg(msg) -> None:
         ipcqueue.put(Msg(**msg))
 
     p_ipc = Process(
         target=ipcworker,
-        args=(socketpath, handleMsg, logqueue),
+        args=(socketpath, handleMsg),
     )
     p_msg = Process(target=msgworker.msgworker, args=())
 
