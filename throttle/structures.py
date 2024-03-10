@@ -1,27 +1,46 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import List
 
 
 class ActionType(Enum):
-    RUN = 0  # run job
-    KILL = 1  # kill job
-    CLEAN = 2  # clear up dangling jobs
+    RUN = auto()  # run job
+    CONT = auto()  # don't run this job, but call next
+    KILL = auto()  # kill job
+    CLEAN = auto()  # clear up dangling jobs
 
 
 @dataclass
 class Msg:
-    cmd: List[str]
+    jobs: List[str]
     action: ActionType
     index: int = 0
+    origin: str = ""
 
     @property
     def job(self) -> str:
-        return self.cmd[self.index]
+        return self.jobs[self.index]
+
+    @job.setter
+    def job(self, j) -> None:
+        self.jobs[self.index] = j
 
     def next(self):
-        if self.index < len(self.cmd) - 1:
+        """
+        Set the next job as executable.
+        """
+
+        if self.index < len(self.jobs) - 1:
+            self.action = ActionType.RUN
             self.index += 1
             return True
-        else:
-            return False
+        return False
+
+    def cont(self) -> bool:
+        """
+        If there is a next job, set the current job as skippable.
+        """
+        if self.index < len(self.jobs) - 1:
+            self.action = ActionType.CONT
+            return True
+        return False

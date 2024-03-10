@@ -1,7 +1,8 @@
 import logging
 import os
 import socket
-from multiprocessing import Process, Queue
+import time
+from multiprocessing import Process, Queue, active_children
 from pathlib import Path
 from typing import Any, Callable
 
@@ -42,8 +43,9 @@ def start_server(socketpath: Path, loglevel) -> None:
         args=(socketpath, handleMsg),
     )
     p_msg = Process(target=msgworker.msgworker, args=())
-
     p_ipc.start()
     p_msg.start()
-    p_ipc.join()
-    p_msg.join()
+    while True:
+        time.sleep(1)
+        if not active_children():
+            break

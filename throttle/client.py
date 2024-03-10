@@ -7,7 +7,7 @@ from .structures import ActionType
 
 
 def send_message(
-    socketpath: Path, kill: bool, cmd: List[str], unknownargs: List[str]
+    socketpath: Path, kill: bool, jobs: List[str], origin: str, unknownargs: List[str]
 ) -> None:
     if not socketpath.exists():
         print("socket doesn't exist, is throttle running?")
@@ -15,13 +15,13 @@ def send_message(
 
         sys.exit(1)
     action = ActionType.KILL if kill else ActionType.RUN
-    job: List[str] = []
-    if cmd is not None:
-        job += cmd
+    mergedjobs: List[str] = []
+    if jobs is not None:
+        mergedjobs += jobs
     if len(unknownargs) > 0:
-        job += [" ".join(unknownargs)]
-    if len(job) == 0:
+        mergedjobs += [" ".join(unknownargs)]
+    if len(mergedjobs) == 0:
         return
     client = ServerProxy(f"unix+http://{socketpath}")
-    client.handle({"action": action, "cmd": job})
+    client.handle({"action": action, "jobs": mergedjobs, "origin": origin})
     client("close")()

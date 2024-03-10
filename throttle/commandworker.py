@@ -45,10 +45,12 @@ class CommandWorker:
             return
         configpath = Path(configdir) / "config.toml"
         if not configpath.exists():
+            self.logger.info(f"no configuration found at {configpath}")
             return
 
         # let's fail if the config is messed up
         config = toml.load(Path(configdir) / "config.toml")
+        self.logger.debug(f"config found: {config}")
         if "task_timeout" in config:
             self.timeout = config["task_timeout"]
         if "filters" in config:
@@ -65,23 +67,26 @@ class CommandWorker:
         if "job_timeout" in config:
             self.job_timeout = config["job_timeout"]
 
-    def checkregex(self, msg: Msg) -> Msg:
-        self.logger.debug(f"checking: {self.filters}")
-        for i, job in enumerate(msg.cmd):
-            for item in self.filters:
-                self.logger.debug(
-                    f"pattern: {item['pattern']}, subsitute: {item['substitute']}, input: {job}"
-                )
-                newjob = re.sub(item["pattern"], item["substitute"], job)
-                if newjob != job:
-                    self.logger.info(f"regex rewrite {job} -> {newjob}")
-                    msg.cmd[i] = newjob
-                    break
-        self.logger.debug(f"regexed: {msg}")
-        return msg
+    def msgworker(self) -> None:
+        """
+        Handle client inputs from the queue.
+        """
+
+        while True:
+            msg: Msg = self.q.get()
+            self.logger.info(f"handling {msg}")
+            match msg.action:
+                case ActionType.RUN:
+                    self.handleRun(msg)
+                case ActionType.CONT:
+                    self.handleRun(msg)
+                case ActionType.KILL:
+                    self.handleKill(msg)
+                case ActionType.CLEAN:
+                    self.handleCleanup()
 
     def handleRun(self, msg) -> None:
-        msg = self.checkregex(msg)
+        msg.job = self.checkregex(msg.job)
         if msg.job not in self.data or not self.data[msg.job].p.is_alive():
             self.logger.debug(f"{msg.job}: doesn't exist or finished, creating")
             q: Queue[Msg] = Queue()
@@ -92,38 +97,39 @@ class CommandWorker:
             )
             p.start()
             self.data[msg.job] = workeritem(p, q, e, time.time())
-        self.logger.debug(
-            f"{msg.job}: approx queue size {self.data[msg.job].q.qsize()}"
-        )
+        qsize = self.data[msg.job].q.qsize()
+        self.logger.debug(f"{msg.job}: approx queue size {qsize}")
+        self.data[msg.job].t = time.time()
         if self.data[msg.job].q.empty():
             self.logger.debug(f"{msg.job}: empty, adding new")
             self.data[msg.job].q.put(msg)
-        self.data[msg.job].t = time.time()
+            return
+        self.logger.debug(f"{msg.job} already queued")
+        if msg.cont():
+            self.logger.debug(f"{msg.job}: adding CONT")
+            self.data[msg.job].q.put(msg)
+
+    def handleCleanup(self):
+        self.logger.debug(f"cleanup underway, {self.data.keys()}")
+        toclean = []
+        for key, val in self.data.items():
+            if not val.p.is_alive():
+                toclean.append(key)
+
+        for key in toclean:
+            del self.data[key]
+        self.logger.debug(f"cleanup finished, {self.data.keys()}")
 
     def handleKill(self, msg) -> None:
-        for job in msg.cmd:
+        for job in msg.jobs:
             if job in self.data:
                 self.data[job].e.set()
         self.logger.debug(f"remaining jobs: {self.data.keys()}")
 
-    def msgworker(self) -> None:
-        """
-        Handle client inputs from the queue.
-        """
-
-        while True:
-            msg: Msg = self.q.get()
-            self.logger.info(f"handling {msg}")
-            if msg.action == ActionType.RUN:
-                self.handleRun(msg)
-            if msg.action == ActionType.CLEAN:
-                self.cleanup()
-            if msg.action == ActionType.KILL:
-                self.handleKill(msg)
-
     def sendNotification(
         self,
         job: str = "",
+        origin: str = "",
         urgency: str = "critical",
         errcode: int = -1000,
         msg: str = "",
@@ -136,6 +142,7 @@ class CommandWorker:
                 shlex.split(
                     self.notification_cmd.format(
                         job=job,
+                        origin=origin,
                         urgency=urgency,
                         msg=msg,
                         errcode=errcode,
@@ -145,9 +152,21 @@ class CommandWorker:
         except Exception as e:
             self.logger.error(f"failed sending notification command with error: {e}")
 
+    def checkregex(self, job) -> str:
+        self.logger.debug(f"checking: {self.filters}")
+        for item in self.filters:
+            self.logger.debug(
+                f"pattern: {item['pattern']}, subsitute: {item['substitute']}, input: {job}"
+            )
+            newjob = re.sub(item["pattern"], item["substitute"], job)
+            if newjob != job:
+                self.logger.info(f"regex rewrite {job} -> {newjob}")
+                return newjob
+        return job
+
     def runworkerFactory(self):
         """
-        Factory for handling each type of jobs.
+        Factory for handling each type of job.
         """
 
         def handlejobs(msg: Msg, e, logger) -> None:
@@ -176,6 +195,7 @@ class CommandWorker:
                         if error_counter >= self.notify_on_counter:
                             self.sendNotification(
                                 job=msg.job,
+                                origin=msg.origin,
                                 msg=f"c:{error_counter}|{proc.stderr.decode('utf-8')} - {proc.stdout.decode('utf-8')}",
                                 errcode=proc.returncode,
                             )
@@ -187,6 +207,7 @@ class CommandWorker:
                     if error_counter >= self.notify_on_counter:
                         self.sendNotification(
                             job=msg.job,
+                            origin=msg.origin,
                             msg=f"subprocess failed with {error}",
                         )
                         error_counter = 0
@@ -209,26 +230,18 @@ class CommandWorker:
                     break
                 try:
                     msg = q.get(timeout=timeout)
-                    counter += 1
-                    logger.info(f"start run no: {counter}")
-                    handlejobs(msg, e, logger)
-                    logger.info(f"finish run no: {counter}")
+                    if msg.action == ActionType.RUN:
+                        counter += 1
+                        logger.info(f"start run no: {counter}")
+                        handlejobs(msg, e, logger)
+                        logger.info(f"finish run no: {counter}")
+                    else:
+                        logger.info("handling CONT")
                     if msg.next():
                         self.q.put(msg)
                 except queue.Empty:
                     logger.info("closing process")
                     break
-            self.q.put(Msg(cmd=[], action=ActionType.CLEAN))
+            self.q.put(Msg(jobs=[], action=ActionType.CLEAN))
 
         return worker
-
-    def cleanup(self):
-        self.logger.debug(f"cleanup underway, {self.data.keys()}")
-        toclean = []
-        for key, val in self.data.items():
-            if not val.p.is_alive():
-                toclean.append(key)
-
-        for key in toclean:
-            del self.data[key]
-        self.logger.debug(f"cleanup finished, {self.data.keys()}")
