@@ -1,4 +1,5 @@
 import logging
+import os
 import queue
 import re
 import shlex
@@ -147,7 +148,8 @@ class CommandWorker:
                         msg=msg,
                         errcode=errcode,
                     )
-                )
+                ),
+                env=os.environ.copy(),
             )
         except Exception as e:
             self.logger.error(f"failed sending notification command with error: {e}")
