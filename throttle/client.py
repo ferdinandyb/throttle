@@ -22,6 +22,15 @@ def send_message(
         mergedjobs += [" ".join(unknownargs)]
     if len(mergedjobs) == 0:
         return
-    client = ServerProxy(f"unix+http://{socketpath}")
-    client.handle({"action": action, "jobs": mergedjobs, "origin": origin})
-    client("close")()
+    try:
+        client = ServerProxy(f"unix+http://{socketpath}")
+        client.handle({"action": action, "jobs": mergedjobs, "origin": origin})
+        client("close")()
+    except ConnectionRefusedError:
+        import sys
+
+        print(
+            "Connection refused: did you start the server with `throttle --server`?",
+            file=sys.stderr,
+        )
+        sys.exit(1)
