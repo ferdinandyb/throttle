@@ -172,7 +172,7 @@ Key that can be used in `notification_cmd`:
 If the command you are running requires gpg, and after multiple commands you are being asked for a pinentry, although normally your gpg key is unlocked, you need to add something like this to `gpg-agent.conf`:
 
 ```
-auto-expand-secmem 100M
+auto-expand-secmem 100
 ```
 
 ## Contributing and issues
