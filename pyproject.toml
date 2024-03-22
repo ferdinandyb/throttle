@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "throttle-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Throttle commands triggered from multiple async sources."
 authors = ["Bence Ferdinandy <bence@ferdinandy.com>"]
 readme = "README.md"

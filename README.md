@@ -169,11 +169,23 @@ Key that can be used in `notification_cmd`:
 
 ## Troubleshooting
 
+### pinentry on frequent gpg access
+
 If the command you are running requires gpg, and after multiple commands you are being asked for a pinentry, although normally your gpg key is unlocked, you need to add something like this to `gpg-agent.conf`:
 
 ```
 auto-expand-secmem 100
 ```
+
+### executables not found when started with systemd
+
+Systemd can load PATH from many places, including some that are not available
+immediately on startup. The easiest way to solve this is using
+[environment.d](https://www.freedesktop.org/software/systemd/man/latest/environment.d.html),
+but you might need to make sure that your file comes _after_ `environment` when
+sorted alphabetically. See
+[here](https://github.com/ferdinandyb/dotfiles/blob/master/.config/environment.d/README.md)
+for a bit more detail.
 
 ## Contributing and issues
 
