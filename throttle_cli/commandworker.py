@@ -194,7 +194,7 @@ class CommandWorker:
                         logger.error(
                             f"{proc.returncode=}, {proc.stdout=}, {proc.stderr=}, {error_counter=}"
                         )
-                        if error_counter >= self.notify_on_counter:
+                        if error_counter >= self.notify_on_counter and msg.notification:
                             self.sendNotification(
                                 job=msg.job,
                                 origin=msg.origin,
@@ -206,7 +206,7 @@ class CommandWorker:
                     success = False
                     error_counter += 1
                     logger.error(f"{msg.job}'s subprocess failed with {error}")
-                    if error_counter >= self.notify_on_counter:
+                    if error_counter >= self.notify_on_counter and msg.notification:
                         self.sendNotification(
                             job=msg.job,
                             origin=msg.origin,
@@ -244,6 +244,6 @@ class CommandWorker:
                 except queue.Empty:
                     logger.info("closing process")
                     break
-            self.q.put(Msg(jobs=[], action=ActionType.CLEAN))
+            self.q.put(Msg(jobs=[], notifications=[], action=ActionType.CLEAN))
 
         return worker

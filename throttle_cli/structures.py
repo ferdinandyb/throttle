@@ -13,6 +13,7 @@ class ActionType(Enum):
 @dataclass
 class Msg:
     jobs: List[str]
+    notifications: List[int]
     action: ActionType
     index: int = 0
     origin: str = ""
@@ -24,6 +25,10 @@ class Msg:
     @job.setter
     def job(self, j) -> None:
         self.jobs[self.index] = j
+
+    @property
+    def notification(self) -> int:
+        return self.notifications[self.index]
 
     def next(self):
         """

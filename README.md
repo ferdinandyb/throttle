@@ -79,17 +79,20 @@ up a single other instance of `mbsync inbox` after the first one finished.
 ## Usage
 
 ```
-usage: throttle [-h] [-s | -j JOB] [-k] [-o ORIGIN] [--LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+usage: throttle [-h] [-s | -j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN] [--LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
 
 options:
   -h, --help            show this help message and exit
   -s, --server          Start server.
   -j JOB, --job JOB     Explicitly give job to execute, can be given multiple times, in that case, they will be run consecutively.
+  -J SILENT_JOB, --silent-job SILENT_JOB
+                        Same as --job, but no notifications will be sent on failure.
   -k, --kill            Kill a previously started job.
   -o ORIGIN, --origin ORIGIN
                         Set the origin of the message, which might be useful in tracking logs.
   --LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set loglevel.
+
 ```
 
 First start a server with `throttle --server`. It will log to
@@ -125,6 +128,23 @@ Practical usage of a multiple commands would be something like:
 ```
 throttle --job "mbsync personal-inbox" --job "notmuch new"
 ```
+
+The silent jobs can be used to check for prerequisite of commands. E.g. after moving a message locally one might run:
+
+```
+throttle \
+  --job "notmuch new" \
+  --silent-job "testinternetconnection" \
+  --job "mbsync-folder" \
+  --job "notmuch new"
+```
+
+This first syncs the notmuch database locally, then checks for internet
+connectivity (see
+[this](https://github.com/ferdinandyb/dotfiles/blob/master/bin/testinternetconnection)
+for an example), which will silently continue to be checked until internet is
+back, then after internet is back, sync the local folder with the server and
+finally run notmuch again to include the changes pulled from the server.
 
 ## Configuration
 

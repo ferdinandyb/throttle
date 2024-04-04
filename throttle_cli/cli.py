@@ -5,6 +5,7 @@ from xdg import BaseDirectory
 
 from .client import send_message
 from .server import start_server
+from .arglib import storeJob, storeSilentJob
 
 
 def main():
@@ -16,8 +17,14 @@ def main():
     group.add_argument(
         "-j",
         "--job",
-        action="append",
+        action=storeJob,
         help="Explicitly give job to execute, can be given multiple times, in that case, they will be run consecutively.",
+    )
+    parser.add_argument(
+        "-J",
+        "--silent-job",
+        action=storeSilentJob,
+        help="Same as --job, but no notifications will be sent on failure.",
     )
     parser.add_argument(
         "-k", "--kill", action="store_true", help="Kill a previously started job."
@@ -41,8 +48,13 @@ def main():
     if args.server:
         start_server(socketpath, loglevel)
         return
-
-    send_message(socketpath, args.kill, args.job, args.origin, unknownargs)
+    if hasattr(args, "notifications"):
+        notifications = args.notifications
+    else:
+        notifications = []
+    send_message(
+        socketpath, args.kill, args.job, notifications, args.origin, unknownargs
+    )
 
 
 if __name__ == "__main__":
