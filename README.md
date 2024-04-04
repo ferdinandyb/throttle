@@ -155,6 +155,7 @@ Example config:
 ```
 task_timeout = 30
 retry_sequence = [5,15,30,60,120,300,900]
+retry_sequence_silent = [5,15,30,60]
 notification_cmd = 'notify-send --urgency={urgency} --app-name="throttle" "{job} ({origin})" "({errcode}): {msg}"'
 
 notify_on_counter = 2
@@ -174,7 +175,8 @@ substitute = 'mbsync \1-folders'
 ```
 
 - `task_timeout`: how long to wait before cleaning up a process with no more incoming commands (probably no need to change this)
-- `retry_sequence`: list of seconds to successively wait if a command fails (e.g. no internet connection), the last element is retried in perpetuity
+- `retry_sequence`: list of seconds to successively wait if a (non-silent) job fails (e.g. bad credentials), the last element is retried in perpetuity
+- `retry_sequence_silent`: list of seconds to successively wait if a silent job fails (e.g. no internet connection), the last element is retried in perpetuity
 - `notification_cmd`: in case of a command failure, this command is called. See below for template keys
 - `notify_on_counter`: how many failures before a notification should be sent
 - `job_timeout`: how many seconds to let a job run, before timeouting it

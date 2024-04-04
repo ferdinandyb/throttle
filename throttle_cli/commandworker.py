@@ -37,6 +37,7 @@ class CommandWorker:
         self.notify_on_counter = 0
         self.job_timeout = 60 * 60
         self.retry_sequence = [5, 15, 30, 60, 120, 300, 900]
+        self.retry_sequence_silent = [5, 15, 30, 60]
 
         self.loadConfig()
 
@@ -61,6 +62,8 @@ class CommandWorker:
             self.filters = config["filters"]
         if "retry_sequence" in config:
             self.retry_sequence = config["retry_sequence"]
+        if "retry_sequence_silent" in config:
+            self.retry_sequence_silent = config["retry_sequence_silent"]
         if "notification_cmd" in config:
             self.notification_cmd = config["notification_cmd"]
         if "notify_on_counter" in config:
@@ -174,10 +177,14 @@ class CommandWorker:
         def handlejobs(msg: Msg, e, logger) -> None:
             retry_timeout_index = -1
             error_counter = 0
+            if msg.notification:
+                retry_sequence = self.retry_sequence
+            else:
+                retry_sequence = self.retry_sequence_silent
             while True:
                 if e.is_set():
                     break
-                if retry_timeout_index + 1 < len(self.retry_sequence):
+                if retry_timeout_index + 1 < len(retry_sequence):
                     retry_timeout_index += 1
                 success = True
                 logger.debug(msg)
@@ -218,7 +225,7 @@ class CommandWorker:
                     break
                 if e.is_set():
                     break
-                time.sleep(self.retry_sequence[retry_timeout_index])
+                time.sleep(retry_sequence[retry_timeout_index])
 
         def worker(q, e, timeout, name) -> None:
             self.retry_sequence
