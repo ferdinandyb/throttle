@@ -135,7 +135,7 @@ The silent jobs can be used to check for prerequisite of commands. E.g. after mo
 throttle \
   --job "notmuch new" \
   --silent-job "testinternetconnection" \
-  --job "mbsync-folder" \
+  --job "mbsync personal-inbox" \
   --job "notmuch new"
 ```
 
