@@ -15,7 +15,8 @@ def send_message(
     unknownargs: List[str],
 ) -> None:
     if not socketpath.exists():
-        print("socket doesn't exist, is throttle running?")
+        print("Socket doesn't exist, is the throttle server running?")
+        print("You can start the server by running throttle-server")
         import sys
 
         sys.exit(1)

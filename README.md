@@ -62,7 +62,7 @@ pipx install git+https://git.sr.ht/~ferdinandyb/throttle
 Start server with
 
 ```
-throttle --server
+throttle-server
 ```
 
 And send a command to the server (via unix socket):
@@ -78,24 +78,39 @@ up a single other instance of `mbsync inbox` after the first one finished.
 
 ## Usage
 
+### Server
+
 ```
-usage: throttle [-h] [-s | -j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN] [--LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+usage: throttle-server [-h] [--LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+
+start the throttle server
 
 options:
   -h, --help            show this help message and exit
-  -s, --server          Start server.
+  --LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                        Set loglevel.
+```
+
+### Client
+
+```
+usage: throttle [-h] [-j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN]
+
+send jobs to the throttle server
+
+options:
+  -h, --help            show this help message and exit
   -j JOB, --job JOB     Explicitly give job to execute, can be given multiple times, in that case, they will be run consecutively.
   -J SILENT_JOB, --silent-job SILENT_JOB
                         Same as --job, but no notifications will be sent on failure.
   -k, --kill            Kill a previously started job.
   -o ORIGIN, --origin ORIGIN
                         Set the origin of the message, which might be useful in tracking logs.
-  --LOGLEVEL {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-                        Set loglevel.
-
 ```
 
-First start a server with `throttle --server`. It will log to
+### Step-by-step and examples
+
+First start a server with `throttle-server`. It will log to
 `$XDG_STATE/throttle/throttle.log`, which should default to
 `~/.local/state/throttle/throttle.log`.
 

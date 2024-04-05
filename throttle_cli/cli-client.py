@@ -1,20 +1,18 @@
-import logging
 from pathlib import Path
 
 from xdg import BaseDirectory
 
-from .client import send_message
-from .server import start_server
 from .arglib import storeJob, storeSilentJob
+from .client import send_message
 
 
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-s", "--server", action="store_true", help="Start server.")
-    group.add_argument(
+    parser = argparse.ArgumentParser(
+        prog="throttle", description="send jobs to the throttle server"
+    )
+    parser.add_argument(
         "-j",
         "--job",
         action=storeJob,
@@ -35,19 +33,8 @@ def main():
         type=str,
         help="Set the origin of the message, which might be useful in tracking logs.",
     )
-    parser.add_argument(
-        "--LOGLEVEL",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Set loglevel.",
-    )
     args, unknownargs = parser.parse_known_args()
     socketpath = Path(BaseDirectory.get_runtime_dir()) / "throttle.sock"
-    loglevel = logging.INFO
-    if args.LOGLEVEL:
-        loglevel = getattr(logging, args.LOGLEVEL)
-    if args.server:
-        start_server(socketpath, loglevel)
-        return
     if hasattr(args, "notifications"):
         notifications = args.notifications
     else:
