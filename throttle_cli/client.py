@@ -46,7 +46,29 @@ def send_message(
         import sys
 
         print(
-            "Connection refused: did you start the server with `throttle --server`?",
+            "Connection refused: did you start the server with `throttle-server`?",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def get_info(socketpath, action):
+    if not socketpath.exists():
+        print("Socket doesn't exist, is the throttle server running?")
+        print("You can start the server by running throttle-server")
+        import sys
+
+        sys.exit(1)
+    try:
+        client = ServerProxy(f"unix+http://{socketpath}")
+        retval = client.info({"action": action})
+        print(retval)
+        client("close")()
+    except ConnectionRefusedError:
+        import sys
+
+        print(
+            "Connection refused: did you start the server with `throttle-server`?",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -26,9 +26,10 @@ class workeritem:
 
 
 class CommandWorker:
-    def __init__(self, queue: Queue, logqueue: Queue):
+    def __init__(self, queue: Queue, logqueue: Queue, comqueue: Queue):
         self.q = queue
         self.logqueue = logqueue
+        self.comqueue = comqueue
         self.logger = logging.getLogger("msg_worker")
         self.data: Dict[str, workeritem] = {}
         self.timeout = 30
@@ -38,6 +39,7 @@ class CommandWorker:
         self.job_timeout = 60 * 60
         self.retry_sequence = [5, 15, 30, 60, 120, 300, 900]
         self.retry_sequence_silent = [5, 15, 30, 60]
+        self.statistics = {"start": time.time(), "jobs": {}}
 
         self.loadConfig()
 
@@ -88,9 +90,15 @@ class CommandWorker:
                     self.handleKill(msg)
                 case ActionType.CLEAN:
                     self.handleCleanup()
+                case ActionType.STATS:
+                    print("stats")
+                    self.comqueue.put(self.statistics)
 
     def handleRun(self, msg) -> None:
         msg.job = self.checkregex(msg.job)
+        if msg.job not in self.statistics["jobs"]:
+            self.statistics["jobs"][msg.job] = {"total": 0, "run": 0}
+        self.statistics["jobs"][msg.job]["total"] += 1
         if msg.job not in self.data or not self.data[msg.job].p.is_alive():
             self.logger.debug(f"{msg.job}: doesn't exist or finished, creating")
             q: Queue[Msg] = Queue()
@@ -107,6 +115,7 @@ class CommandWorker:
         if self.data[msg.job].q.empty():
             self.logger.debug(f"{msg.job}: empty, adding new")
             self.data[msg.job].q.put(msg)
+            self.statistics["jobs"][msg.job]["run"] += 1
             return
         self.logger.debug(f"{msg.job} already queued")
         if msg.cont():

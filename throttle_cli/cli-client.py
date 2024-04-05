@@ -4,7 +4,8 @@ from xdg import BaseDirectory
 
 from . import __version__
 from .arglib import storeJob, storeSilentJob
-from .client import send_message
+from .client import get_info, send_message
+from .structures import ActionType
 
 
 def main():
@@ -37,8 +38,15 @@ def main():
         type=str,
         help="Set the origin of the message, which might be useful in tracking logs.",
     )
+    parser.add_argument(
+        "--statistics",
+        action="store_true",
+        help="Print statistics for handled commands",
+    )
     args, unknownargs = parser.parse_known_args()
     socketpath = Path(BaseDirectory.get_runtime_dir()) / "throttle.sock"
+    if args.statistics:
+        get_info(socketpath, ActionType.STATS)
     if hasattr(args, "notifications"):
         notifications = args.notifications
     else:

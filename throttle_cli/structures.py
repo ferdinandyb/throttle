@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List
 
@@ -8,13 +8,14 @@ class ActionType(Enum):
     CONT = auto()  # don't run this job, but call next
     KILL = auto()  # kill job
     CLEAN = auto()  # clear up dangling jobs
+    STATS = auto()
 
 
 @dataclass
 class Msg:
-    jobs: List[str]
-    notifications: List[int]
     action: ActionType
+    jobs: List[str] = field(default_factory=list)
+    notifications: List[int] = field(default_factory=list)
     index: int = 0
     origin: str = ""
 
