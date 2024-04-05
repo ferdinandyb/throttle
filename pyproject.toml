@@ -15,8 +15,8 @@ pyxdg = "^0.28"
 prettytable = "^3.10.0"
 
 [tool.poetry.scripts]
-throttle = "throttle_cli.cli-client:main"
-throttle-server = "throttle_cli.cli-server:main"
+throttle = "throttle_cli.cli_client:main"
+throttle-server = "throttle_cli.cli_server:main"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
