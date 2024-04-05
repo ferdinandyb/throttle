@@ -3,7 +3,7 @@ from typing import List
 
 from jsonrpclib import ServerProxy
 
-from .statparser import parse_stats
+from .infoparser import parse_stat, parse_status
 from .structures import ActionType
 
 
@@ -63,7 +63,10 @@ def get_info(socketpath, action, format):
     try:
         client = ServerProxy(f"unix+http://{socketpath}")
         retval = client.info({"action": action})
-        print(parse_stats(retval, format))
+        if action == ActionType.STATS:
+            print(parse_stat(retval, format))
+        elif action == ActionType.STATUS:
+            print(parse_status(retval, format))
         client("close")()
     except ConnectionRefusedError:
         import sys

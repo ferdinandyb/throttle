@@ -8,7 +8,8 @@ class ActionType(Enum):
     CONT = auto()  # don't run this job, but call next
     KILL = auto()  # kill job
     CLEAN = auto()  # clear up dangling jobs
-    STATS = auto()
+    STATS = auto()  # return stats to client
+    STATUS = auto()  # return current status to client
 
 
 @dataclass

@@ -41,7 +41,12 @@ def main():
     parser.add_argument(
         "--statistics",
         action="store_true",
-        help="Print statistics for handled commands",
+        help="Print statistics for handled commands.",
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Print status information for currently running workers.",
     )
     parser.add_argument(
         "--format",
@@ -53,6 +58,10 @@ def main():
     socketpath = Path(BaseDirectory.get_runtime_dir()) / "throttle.sock"
     if args.statistics:
         get_info(socketpath, ActionType.STATS, args.format)
+        return
+    if args.status:
+        get_info(socketpath, ActionType.STATUS, args.format)
+        return
     if hasattr(args, "notifications"):
         notifications = args.notifications
     else:

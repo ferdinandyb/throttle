@@ -92,6 +92,14 @@ class CommandWorker:
                     self.handleCleanup()
                 case ActionType.STATS:
                     self.comqueue.put(self.statistics)
+                case ActionType.STATUS:
+                    self.comqueue.put(self.get_status())
+
+    def get_status(self):
+        retval = {}
+        for key, value in self.data.items():
+            retval[key] = {"queuesize": value.q.qsize(), "uptime": value.t}
+        return retval
 
     def handleRun(self, msg) -> None:
         msg.job = self.checkregex(msg.job)
