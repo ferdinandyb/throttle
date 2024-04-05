@@ -95,7 +95,7 @@ options:
 ### Client
 
 ```
-usage: throttle [-h] [--version] [-j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN] [--statistics] [--format {text,csv,latex,html,json,markdown,plain}]
+usage: throttle [-h] [--version] [-j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN] [--statistics] [--status] [--format {text,csv,latex,html,json,markdown,plain}]
 
 send jobs to the throttle server
 
@@ -108,7 +108,8 @@ options:
   -k, --kill            Kill a previously started job.
   -o ORIGIN, --origin ORIGIN
                         Set the origin of the message, which might be useful in tracking logs.
-  --statistics          Print statistics for handled commands
+  --statistics          Print statistics for handled commands.
+  --status              Print status information for currently running workers.
   --format {text,csv,latex,html,json,markdown,plain}
                         Format for printing results.
 ```
