@@ -113,7 +113,7 @@ class CommandWorker:
             self.logger.debug(f"{msg.job}: adding CONT")
             self.data[msg.job].q.put(msg)
 
-    def handleCleanup(self):
+    def handleCleanup(self) -> None:
         self.logger.debug(f"cleanup underway, {self.data.keys()}")
         toclean = []
         for key, val in self.data.items():
@@ -122,7 +122,7 @@ class CommandWorker:
 
         for key in toclean:
             del self.data[key]
-        self.logger.debug(f"cleanup finished, {self.data.keys()}")
+        self.logger.info(f"cleanup finished, {self.data.keys()}")
 
     def handleKill(self, msg) -> None:
         for job in msg.jobs:
@@ -229,10 +229,11 @@ class CommandWorker:
 
         def worker(q, e, timeout, name) -> None:
             self.retry_sequence
-
-            logger = logging.getLogger(f"{name.replace(' ','_')}_worker")
+            logger_name = f"{name.replace(' ','_')}_worker"
+            logger = logging.getLogger(logger_name)
             counter = 0
-            logger.info("starting process")
+            cont_counter = 0
+            logger.debug(f"starting process for {logger_name}")
 
             while True:
                 if e.is_set():
@@ -241,15 +242,16 @@ class CommandWorker:
                     msg = q.get(timeout=timeout)
                     if msg.action == ActionType.RUN:
                         counter += 1
-                        logger.info(f"start run no: {counter}")
+                        logger.debug(f"start run no: {counter} (CONT: {cont_counter})")
                         handlejobs(msg, e, logger)
-                        logger.info(f"finish run no: {counter}")
+                        logger.debug(f"finish run no: {counter} (CONT: {cont_counter})")
                     else:
-                        logger.info("handling CONT")
+                        cont_counter += 1
+                        logger.debug(f"handling CONT no. {cont_counter}")
                     if msg.next():
                         self.q.put(msg)
                 except queue.Empty:
-                    logger.info("closing process")
+                    logger.debug(f"closing process for {logger_name}")
                     break
             self.q.put(Msg(jobs=[], notifications=[], action=ActionType.CLEAN))
 
