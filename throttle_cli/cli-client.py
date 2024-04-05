@@ -2,6 +2,7 @@ from pathlib import Path
 
 from xdg import BaseDirectory
 
+from . import __version__
 from .arglib import storeJob, storeSilentJob
 from .client import send_message
 
@@ -11,6 +12,9 @@ def main():
 
     parser = argparse.ArgumentParser(
         prog="throttle", description="send jobs to the throttle server"
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"throttle {__version__}"
     )
     parser.add_argument(
         "-j",

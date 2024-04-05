@@ -3,6 +3,7 @@ from pathlib import Path
 
 from xdg import BaseDirectory
 
+from . import __version__
 from .server import start_server
 
 
@@ -16,6 +17,9 @@ def main():
         "--LOGLEVEL",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set loglevel.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"throttle {__version__}"
     )
     args = parser.parse_args()
     socketpath = Path(BaseDirectory.get_runtime_dir()) / "throttle.sock"
