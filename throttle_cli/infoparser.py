@@ -31,9 +31,10 @@ def parse_stat(stats, format):
         t = total_sec / 60
         throttle = (tot - r) / tot
         avg = r / t
-        table.add_row([key[:maxwidth], r, tot, f"{throttle:.2f}", f"{avg:.2f}"])
+        table.add_row([key[:maxwidth], r, tot, throttle, avg])
     table.sortby = "throttle"
     table.reversesort = True
+    table.float_format = ".2"
     table.align["job"] = "l"
     return formatTable(table, format)
 
@@ -49,8 +50,9 @@ def parse_status(status, format):
     table.field_names = ["job", "queue size", "uptime (s)"]
     for key, val in status.items():
         uptime = curtime - val["uptime"]
-        table.add_row([key[:maxwidth], val["queuesize"], f"{uptime:.0f}"])
+        table.add_row([key[:maxwidth], val["queuesize"], uptime])
     table.sortby = "uptime (s)"
     table.reversesort = True
+    table.float_format = ".0"
     table.align["job"] = "l"
     return formatTable(table, format)
