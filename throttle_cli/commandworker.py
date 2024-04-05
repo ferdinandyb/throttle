@@ -262,6 +262,6 @@ class CommandWorker:
                 except queue.Empty:
                     logger.debug(f"closing process for {logger_name}")
                     break
-            self.q.put(Msg(jobs=[], notifications=[], action=ActionType.CLEAN))
+            self.q.put(Msg(action=ActionType.CLEAN))
 
         return worker
