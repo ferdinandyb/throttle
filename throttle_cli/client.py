@@ -3,6 +3,7 @@ from typing import List
 
 from jsonrpclib import ServerProxy
 
+from .statparser import parse_stats
 from .structures import ActionType
 
 
@@ -52,7 +53,7 @@ def send_message(
         sys.exit(1)
 
 
-def get_info(socketpath, action):
+def get_info(socketpath, action, format):
     if not socketpath.exists():
         print("Socket doesn't exist, is the throttle server running?")
         print("You can start the server by running throttle-server")
@@ -62,7 +63,7 @@ def get_info(socketpath, action):
     try:
         client = ServerProxy(f"unix+http://{socketpath}")
         retval = client.info({"action": action})
-        print(retval)
+        print(parse_stats(retval, format))
         client("close")()
     except ConnectionRefusedError:
         import sys

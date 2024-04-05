@@ -91,7 +91,6 @@ class CommandWorker:
                 case ActionType.CLEAN:
                     self.handleCleanup()
                 case ActionType.STATS:
-                    print("stats")
                     self.comqueue.put(self.statistics)
 
     def handleRun(self, msg) -> None:

@@ -1,7 +1,7 @@
 # Throttle
 
 A small client-server utility, that throttles commands sent to it from multiple
-async sources.
+async sources. Also doubles as an error-notification handler for these jobs.
 
 Features:
 
@@ -11,6 +11,7 @@ Features:
 - configurable notification callback for failed commands
 - configuration allows handling spammed notifications from flaky commands (e.g because of flaky networks)
 - regex based on the fly rewrite of commands
+- statistics on the amount of throttling
 
 ## Social
 
@@ -94,18 +95,22 @@ options:
 ### Client
 
 ```
-usage: throttle [-h] [-j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN]
+usage: throttle [-h] [--version] [-j JOB] [-J SILENT_JOB] [-k] [-o ORIGIN] [--statistics] [--format {text,csv,latex,html,json,markdown,plain}]
 
 send jobs to the throttle server
 
 options:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
   -j JOB, --job JOB     Explicitly give job to execute, can be given multiple times, in that case, they will be run consecutively.
   -J SILENT_JOB, --silent-job SILENT_JOB
                         Same as --job, but no notifications will be sent on failure.
   -k, --kill            Kill a previously started job.
   -o ORIGIN, --origin ORIGIN
                         Set the origin of the message, which might be useful in tracking logs.
+  --statistics          Print statistics for handled commands
+  --format {text,csv,latex,html,json,markdown,plain}
+                        Format for printing results.
 ```
 
 ### Step-by-step and examples
@@ -204,6 +209,35 @@ Key that can be used in `notification_cmd`:
 - errcode: errorcode if it exists (set to -1000 if error code was not returned)
 - msg: usually stderr of subprocess
 
+## Statistics
+
+Running `throttle --statistics --format=markdown` will output something like
+this. If connected to a tty, the job names will be truncated to make each row
+fit on a line. When redirected, there's not truncating.
+
+The column are the following (statistics are gathered from starting the server
+and are not persisted across sessions):
+
+- `run`: number of times the job has been actually run
+- `total`: number of times the job has been submitted for running
+- `throttle`: ratio of requests that were requested, but did not run
+- `avg/min`: average number of `run` per minute
+
+```
+| job                               | run | total | throttle | avg/min |
+| :---------------------------------| :-: | :---: | :------: | :-----: |
+| mbsync priestoferis-folders       |  18 |  216  |   0.92   |   0.03  |
+| mbsync priestoferis-inbox         |  10 |   37  |   0.73   |   0.02  |
+| mbsync priestoferis-sent          |  10 |   36  |   0.72   |   0.02  |
+| mbsync priestoferis-drafts        |  10 |   36  |   0.72   |   0.02  |
+| mbsync priestoferis-archive       |  10 |   36  |   0.72   |   0.02  |
+| mbsync elte-folders               |  72 |  144  |   0.50   |   0.13  |
+| notmuch new                       | 832 |  1118 |   0.26   |   1.46  |
+| mbsync elte-sent                  |  31 |   37  |   0.16   |   0.05  |
+| mbsync elte-inbox                 |  44 |   49  |   0.10   |   0.08  |
+| testinternetconnection            | 992 |  1080 |   0.08   |   1.74  |
+
+```
 ## Troubleshooting
 
 ### pinentry on frequent gpg access

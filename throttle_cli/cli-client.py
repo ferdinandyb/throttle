@@ -43,10 +43,16 @@ def main():
         action="store_true",
         help="Print statistics for handled commands",
     )
+    parser.add_argument(
+        "--format",
+        choices=["text", "csv", "latex", "html", "json", "markdown", "plain"],
+        default="text",
+        help="Format for printing results.",
+    )
     args, unknownargs = parser.parse_known_args()
     socketpath = Path(BaseDirectory.get_runtime_dir()) / "throttle.sock"
     if args.statistics:
-        get_info(socketpath, ActionType.STATS)
+        get_info(socketpath, ActionType.STATS, args.format)
     if hasattr(args, "notifications"):
         notifications = args.notifications
     else:

@@ -1,0 +1,38 @@
+import os
+import sys
+import time
+
+from prettytable import MARKDOWN, PLAIN_COLUMNS, PrettyTable
+
+
+def formatTable(table, format):
+    if format == "markdown":
+        table.set_style(MARKDOWN)
+        format = "text"
+    if format == "plain":
+        table.set_style(PLAIN_COLUMNS)
+        format = "text"
+    return table.get_formatted_string(format)
+
+
+def parse_stats(stats, format):
+    maxwidth = None
+    if sys.stdout.isatty():
+        width, _ = os.get_terminal_size()
+        maxwidth = width - 40
+
+    curtime = time.time()
+    total_sec = curtime - stats["start"]
+    table = PrettyTable()
+    table.field_names = ["job", "run", "total", "throttle", "avg/min"]
+    for key, val in stats["jobs"].items():
+        r = val["run"]
+        tot = val["total"]
+        t = total_sec / 60
+        throttle = (tot - r) / tot
+        avg = r / t
+        table.add_row([key[:maxwidth], r, tot, f"{throttle:.2f}", f"{avg:.2f}"])
+    table.sortby = "throttle"
+    table.reversesort = True
+    table.align["job"] = "l"
+    return formatTable(table, format)

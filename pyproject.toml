@@ -12,6 +12,7 @@ python = ">=3.10"
 jsonrpclib-pelix = "^0.4.3.2"
 toml = "^0.10.2"
 pyxdg = "^0.28"
+prettytable = "^3.10.0"
 
 [tool.poetry.scripts]
 throttle = "throttle_cli.cli-client:main"
